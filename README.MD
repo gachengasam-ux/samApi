@@ -40,7 +40,7 @@ SAMAPI/
 
 ```bash
 git clone <git@github.com:gachengasam-ux/samApi.git>
-cd inventory-api
+cd samApi
 ```
 
 ### 2. Create a virtual environment
