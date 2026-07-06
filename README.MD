@@ -39,7 +39,7 @@ SAMAPI/
 ### 1. Clone the repository
 
 ```bash
-git clone <your-github-repo-link>
+git clone <git@github.com:gachengasam-ux/samApi.git>
 cd inventory-api
 ```
 
