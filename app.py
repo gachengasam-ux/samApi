@@ -8,7 +8,9 @@ from inventory import (
     add_item,
     update_item,
     delete_item,
-    fetch_product_from_api
+    fetch_product_from_api,
+    search_products_by_name,
+    import_product_from_api
 )
 # creates a flask application object(holds all your routes and tells flask how the app should behave)
 app = Flask(__name__)
@@ -82,6 +84,40 @@ def get_external_product(barcode):
         return jsonify({"message": "Product not found"}), 404
 # returns product
     return jsonify(product), 200
+
+
+# search Open Food Facts by product name and barcode
+# returns a list of candidates the user can choose from before importing
+@app.route("/external/search", methods=["GET"])
+def search_external_products():
+    name = request.args.get("name")
+
+    if not name:
+        return jsonify({"message": "Query parameter 'name' is required"}), 400
+
+    results = search_products_by_name(name)
+    return jsonify(results), 200
+
+
+# takes a barcode found via /external/<barcode> or /external/search
+# and inserts it into the current inventory as a real item
+@app.route("/external/import", methods=["POST"])
+def import_external_product():
+    data = request.get_json()
+
+    if not data or "barcode" not in data:
+        return jsonify({"message": "barcode is required"}), 400
+
+    barcode = data["barcode"]
+    quantity = data.get("quantity", 0)
+    price = data.get("price", 0)
+
+    new_item = import_product_from_api(barcode, quantity, price)
+
+    if new_item is None:
+        return jsonify({"message": "Product not found"}), 404
+
+    return jsonify(new_item), 201
 
 
 if __name__ == "__main__":

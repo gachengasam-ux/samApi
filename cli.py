@@ -73,11 +73,59 @@ def delete_item():
     print(response.json())
 
 # external product lookup: connects external API feature in your project
+# lets the user search by barcode OR name, then choose to insert
+# the found product straight into current inventory
+# function for choosing a search mode
+
 def fetch_external_product():
-    # user enters barcode
-    barcode = input("Enter barcode: ")
-    # CLI sends a GET request to your flask route then flask talks to open food facts behind the scenes
-    response = requests.get(f"{BASE_URL}/external/{barcode}")
+    print("Search by: 1) Barcode  2) Name")
+    mode = input("Choose an option: ")
+# barcode
+    if mode == "1":
+        barcode = input("Enter barcode: ")
+        response = requests.get(f"{BASE_URL}/external/{barcode}")
+        if response.status_code != 200:
+            print(response.json())
+            return
+        candidate = response.json()
+# name
+    elif mode == "2":
+        name = input("Enter product name: ")
+        response = requests.get(f"{BASE_URL}/external/search", params={"name": name})
+        results = response.json()
+
+        if not results:
+            print("No products found.")
+            return
+
+        print("\nResults:")
+        for i, p in enumerate(results, start=1):
+            print(f"{i}. {p['name']} ({p['brand']}) - barcode: {p['barcode']}")
+
+        choice = input("Enter number to select (or press Enter to cancel): ")
+        if not choice:
+            return
+        candidate = results[int(choice) - 1]
+
+    else:
+        print("Invalid option.")
+        return
+
+    print(f"\nSelected: {candidate['name']}")
+    add_choice = input("Add this product to inventory? (y/n): ")
+    if add_choice.lower() != "y":
+        return
+
+    quantity = int(input("Enter quantity: "))
+    price = float(input("Enter price: "))
+
+    # this is the step that actually inserts the searched product
+    # into the running inventory array via the Flask API
+    response = requests.post(f"{BASE_URL}/external/import", json={
+        "barcode": candidate["barcode"],
+        "quantity": quantity,
+        "price": price
+    })
     print(response.json())
 
 # Main loop
@@ -107,5 +155,4 @@ def main():
 
 if __name__ == "__main__":
     main()
-
 

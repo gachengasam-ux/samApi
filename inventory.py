@@ -20,6 +20,14 @@ def get_item_by_id(item_id):
 
 #creating a new dictionary and then we put them in a list
 
+# resets both the inventory list AND the id counter
+# used by tests so each test can rely on ids starting at 1
+def reset_inventory():
+    global next_id
+    inventory.clear()
+    next_id = 1
+
+
 def add_item(name, quantity, price, barcode=None):
     global next_id
 
@@ -61,7 +69,7 @@ def delete_item(item_id):
 
     inventory.remove(item)
     return True
-
+# search by barcode
 # sending a request to Open Food Facts and reads the JSON response
 def fetch_product_from_api(barcode):
     url = f"https://world.openfoodfacts.net/api/v2/product/{barcode}.json"
@@ -83,4 +91,54 @@ def fetch_product_from_api(barcode):
         "category": product.get("categories", "Unknown Category"),
         "barcode": barcode
     }
+
+# search by name
+# searches Open Food Facts by product name instead of barcode
+# returns a list of candidate products so the user can pick which one to import
+def search_products_by_name(name, limit=10):
+    url = "https://world.openfoodfacts.net/cgi/search.pl"
+    params = {
+        "search_terms": name,
+        "search_simple": 1,
+        "action": "process",
+        "json": 1,
+        "page_size": limit
+    }
+    response = requests.get(url, params=params, timeout=10)
+
+    if response.status_code != 200:
+        return []
+
+    data = response.json()
+    products = data.get("products", [])
+
+    results = []
+    for product in products:
+        barcode = product.get("code")
+        # skip entries with no barcode since we need it to import later
+        if not barcode:
+            continue
+        results.append({
+            "barcode": barcode,
+            "name": product.get("product_name") or "Unknown Product",
+            "brand": product.get("brands", "Unknown Brand"),
+            "category": product.get("categories", "Unknown Category")
+        })
+    return results
+
+
+# takes a barcode already looked up from the external API and
+# inserts it straight into the current inventory as a new item
+def import_product_from_api(barcode, quantity=0, price=0):
+    product = fetch_product_from_api(barcode)
+
+    if product is None:
+        return None
+
+    return add_item(
+        product["name"],
+        quantity,
+        price,
+        barcode
+    )
 
