@@ -1,18 +1,22 @@
 # Inventory Management System
 
-This is a simple Flask REST API for managing inventory items.  
-It also connects to the Open Food Facts API to fetch product details by barcode.
+This is a simple Flask REST API for managing inventory items.
+It also connects to the Open Food Facts API to search for products by
+barcode or name, and to import a found product straight into the
+current inventory.
 
 ## Features
 
 - Add inventory items
 - View all items
 - View one item by ID
-- Update items
+- Update items (partial update via PATCH)
 - Delete items
-- Fetch product details from Open Food Facts
+- Search Open Food Facts by barcode
+- Search Open Food Facts by product name (returns multiple candidates)
+- Import a searched product directly into inventory
 - CLI menu for interacting with the API
-- Unit tests for the main features
+- Unit tests for all routes, including mocked external API calls
 
 ## Technologies Used
 
@@ -24,10 +28,11 @@ It also connects to the Open Food Facts API to fetch product details by barcode.
 ## Project Structure
 
 ```text
-SAMAPI/
+samApi/
 ├── app.py
 ├── cli.py
 ├── inventory.py
+├── conftest.py
 ├── requirements.txt
 ├── tests/
 │   └── test_app.py
@@ -39,7 +44,7 @@ SAMAPI/
 ### 1. Clone the repository
 
 ```bash
-git clone <git@github.com:gachengasam-ux/samApi.git>
+git clone git@github.com:gachengasam-ux/samApi.git
 cd samApi
 ```
 
@@ -97,6 +102,10 @@ Make sure the Flask app is running first, then in another terminal run:
 python cli.py
 ```
 
+The CLI lets you view, add, update, and delete inventory items, and also
+search Open Food Facts by barcode or name and insert the result straight
+into inventory (menu option 5).
+
 ## Running Tests
 
 Run the tests with:
@@ -105,18 +114,29 @@ Run the tests with:
 pytest
 ```
 
+Tests cover all CRUD routes (including not-found and missing-field cases)
+and all external API routes, using mocked HTTP calls so they never depend
+on a live internet connection.
+
 ## API Endpoints
 
-- `GET /items` - Get all items
-- `GET /items/<id>` - Get one item
-- `POST /items` - Add a new item
-- `PATCH /items/<id>` - Update an item
-- `DELETE /items/<id>` - Delete an item
-- `GET /external/<barcode>` - Fetch product data from Open Food Facts
+| Method | Route                     | Description                                                 |
+|--------|---------------------------|---------------------------------------------------------------|
+| GET    | `/items`                  | Get all inventory items                                       |
+| GET    | `/items/<id>`              | Get a single item by ID                                       |
+| POST   | `/items`                  | Add a new item (`name`, `quantity`, `price` required)          |
+| PATCH  | `/items/<id>`              | Update one or more fields on an existing item                  |
+| DELETE | `/items/<id>`              | Delete an item                                                 |
+| GET    | `/external/<barcode>`      | Look up a single product on Open Food Facts by barcode          |
+| GET    | `/external/search?name=`   | Search Open Food Facts by product name, returns candidates      |
+| POST   | `/external/import`         | Fetch a product by barcode and insert it into inventory         |
 
-## Example Request
+## Example Requests
+
+Create an item directly:
 
 ```json
+POST /items
 {
   "name": "Rice",
   "quantity": 10,
@@ -124,6 +144,24 @@ pytest
 }
 ```
 
+Search Open Food Facts by name:
+
+```text
+GET /external/search?name=rice
+```
+
+Import a searched product into inventory:
+
+```json
+POST /external/import
+{
+  "barcode": "5449000000996",
+  "quantity": 10,
+  "price": 150
+}
+```
+
 ## Notes
 
-This project uses in-memory storage, so items will reset when the server restarts.
+This project uses in-memory storage, so items will reset when the server
+restarts.

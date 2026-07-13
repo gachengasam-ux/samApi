@@ -133,6 +133,111 @@ def test_delete_item_not_found(client):
 
 
 
+# GET /external/<barcode>
+# requests.get is mocked so these tests never hit the real internet
+
+
+@patch("inventory.requests.get")
+def test_external_product_found(mock_get, client):
+    mock_get.return_value.status_code = 200
+    mock_get.return_value.json.return_value = {
+        "status": 1,
+        "product": {
+            "product_name": "Coca Cola",
+            "brands": "Coca-Cola",
+            "categories": "Beverages"
+        }
+    }
+    response = client.get("/external/5449000000996")
+    data = response.get_json()
+    assert response.status_code == 200
+    assert data["name"] == "Coca Cola"
+
+
+@patch("inventory.requests.get")
+def test_external_product_not_found(mock_get, client):
+    mock_get.return_value.status_code = 404
+    response = client.get("/external/00000000")
+    assert response.status_code == 404
+
+
+
+# GET /external/search
+
+
+@patch("inventory.requests.get")
+def test_external_search_by_name(mock_get, client):
+    mock_get.return_value.status_code = 200
+    mock_get.return_value.json.return_value = {
+        "products": [
+            {
+                "code": "111",
+                "product_name": "Basmati Rice",
+                "brands": "Brand A",
+                "categories": "Grains"
+            }
+        ]
+    }
+    response = client.get("/external/search?name=rice")
+    data = response.get_json()
+    assert response.status_code == 200
+    assert data[0]["barcode"] == "111"
+    assert data[0]["name"] == "Basmati Rice"
+
+
+def test_external_search_missing_query(client):
+    response = client.get("/external/search")
+    assert response.status_code == 400
+
+
+
+# POST /external/import
+# this is the "insert searched product into current inventory" feature
+
+
+@patch("inventory.requests.get")
+def test_external_import_adds_to_inventory(mock_get, client):
+    mock_get.return_value.status_code = 200
+    mock_get.return_value.json.return_value = {
+        "status": 1,
+        "product": {
+            "product_name": "Coca Cola",
+            "brands": "Coca-Cola",
+            "categories": "Beverages"
+        }
+    }
+    response = client.post("/external/import", json={
+        "barcode": "5449000000996",
+        "quantity": 10,
+        "price": 150
+    })
+    data = response.get_json()
+    assert response.status_code == 201
+    assert data["name"] == "Coca Cola"
+    assert data["quantity"] == 10
+    assert data["barcode"] == "5449000000996"
+
+    # confirm it actually landed in the inventory array, not just returned
+    get_response = client.get("/items")
+    items = get_response.get_json()
+    assert len(items) == 1
+    assert items[0]["name"] == "Coca Cola"
+
+
+def test_external_import_missing_barcode(client):
+    response = client.post("/external/import", json={})
+    assert response.status_code == 400
+
+
+@patch("inventory.requests.get")
+def test_external_import_product_not_found(mock_get, client):
+    mock_get.return_value.status_code = 404
+    response = client.post("/external/import", json={"barcode": "00000000"})
+    assert response.status_code == 404
+
+
+
+
 
 
 
